@@ -1,0 +1,314 @@
+-- criação do banco de dados para o cenário de E-commerce
+
+create database ecommerce;
+use ecommerce;
+
+desc clients;
+-- criar tabela cliente
+
+create table clients(
+	idClient int auto_increment primary key,
+    Fname varchar (10),
+    Minit char(3),
+    Lname varchar(20),
+    CPF char(11) not null,
+    Address varchar(100),
+    CONSTRAINT unique_cpf_client UNIQUE (CPF)
+);
+
+
+-- criar tabela produto
+-- size: dimensão do produto
+
+create table product(
+	idProduct int auto_increment primary key,
+    Pname varchar(15) not null,
+    classification_kids bool default false,
+    category enum('Eletrônico', 'Vestimento', 'Brinquedos', 'Alimentos') not null,
+    assessment float default 0,
+    size varchar(10),
+    Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0)
+);
+
+
+-- criar tabela pedido
+
+create table orders(
+	idOrder int auto_increment primary key,
+  idOrderClient int,
+  orderStatus enum('Cancelado', 'Enviado', 'Em Processamento') default 'Em Processamento',
+  orderDescription varchar(255),
+  Freight float default 10,
+	constraint fk_orders_client foreign key (idOrderClient) references clients(idClient)
+);
+
+-- criar tabela de pagamento
+
+create table payments(
+	idOrder int not null,
+    idPayment int auto_increment primary key,
+    typePayments enum('Boleto', 'Cartão', 'Pix'),
+    PaymentsStatus varchar(20),
+    paymentDate DATE not null,
+    constraint fk_payments_order foreign key (idOrder) references orders(idOrder)
+);
+
+-- criar tabela de estoque
+
+create table productStorage(
+	idProdStorage int auto_increment primary key,
+    storageLocation varchar(255),
+    quantity int default 0
+);
+
+-- criar tabela de fornecedor
+
+create table supplier(
+	idSupplier int auto_increment primary key,
+    SocialName varchar(255) not null,
+    CNPJ char(14) not null,
+    contact char(11) not null,
+    constraint unique_supplier unique (CNPJ)
+);
+
+-- criar tabela de vendedor
+
+create table seller(
+	idSeller int auto_increment primary key,
+    SocialName varchar(255) not null,
+    AbstName varchar(255),
+    CNPJ char(14),
+    CPF char(11),
+    location varchar(255),
+    contact char(11) not null,
+    constraint unique_cnpf_seller unique(CNPJ),
+    constraint unique_cpf_seller unique(CPF),
+    CONSTRAINT chk_seller_cpf_cnpj CHECK (CPF IS NOT NULL OR CNPJ IS NOT NULL)
+);
+
+
+-- criar tabela de produto de vendedor
+
+create table productSeller(
+	idPseller int,
+    idProduct int,
+    prodQuantity int default 1,
+    primary key (idPseller, idProduct),
+    constraint fk_product_seller  foreign key (idPseller) references seller(idSeller),
+	constraint fk_product_product  foreign key (idProduct) references product(idProduct)
+);
+
+-- produto e pedido
+
+create table productOrder(
+	idPOproduct int,
+    idPOorder int,
+    poQuantity int default 1,
+    poStatus enum('Disponível','Sem estoque') default 'Disponivel',
+    primary key (idPOproduct,idPOorder),
+    constraint fk_productOrder_seller  foreign key (idPOproduct) references product(idProduct),
+    constraint fk_productOrder_product  foreign key (idPOorder) references orders(idOrder)
+);
+
+-- estoque de produto
+
+create table storageLocation(
+	idLproduct int,
+    idLstorage int,
+    location varchar(255) not null,
+    primary key(idLproduct,idLstorage),
+    constraint fk_storageLocation_product  foreign key (idLproduct) references product(idProduct),
+    constraint fk_storageLocation_storage  foreign key (idLstorage) references productStorage(idProdStorage)
+
+);
+
+
+-- criando produto vendedor
+
+create table productSupplier(
+	idPsSupplier int,
+    idPsProduct int,
+    quantity int not null,
+    primary key(idPsSupplier,idPsProduct),
+    constraint fk_product_supplier_supplier foreign key (idPsSupplier) references supplier(idSupplier),
+    constraint fk_product_supplier_product foreign key (idPsProduct) references product(idProduct)
+);
+
+#########################################################################################################################################################################################
+-- Criando registros 
+use ecommerce;
+
+
+INSERT INTO clients (Fname, Minit, Lname, CPF, Address) VALUES
+		('Lucas', 'A', 'Silva', '12345678901', 'Rua das Flores, 123, São Paulo'),
+		('Mariana', 'B', 'Souza', '23456789012', 'Av. Brasil, 456, Rio de Janeiro'),
+		('Pedro', 'C', 'Oliveira', '34567890123', 'Rua do Sol, 789, Belo Horizonte'),
+		('Ana', 'D', 'Costa', '45678901234', 'Rua das Palmeiras, 101, Curitiba'),
+		('Carla', 'E', 'Pereira', '56789012345', 'Av. Paulista, 202, São Paulo'),
+		('Rafael', 'F', 'Lima', '67890123456', 'Rua 7 de Setembro, 303, Porto Alegre'),
+		('Fernanda', 'G', 'Martins', '78901234567', 'Rua das Acácias, 404, Salvador');
+        
+
+INSERT INTO product (Pname, classification_kids, category, assessment, size, Price) VALUES
+		('Smartphone', false, 'Eletrônico', 4.5, 'M', 2500.00),
+		('Notebook', false, 'Eletrônico', 4.8, 'G', 4500.00),
+		('Camiseta', false, 'Vestimento', 4.0, 'M', 79.90),
+		('Tênis', false, 'Vestimento', 4.3, '42', 199.90),
+		('Boneca', true, 'Brinquedos', 4.6, 'P', 89.90),
+		('Quebra-cabeça', true, 'Brinquedos', 4.2, 'M', 59.90),
+		('Chocolate', false, 'Alimentos', 4.9, 'G', 12.50);
+
+
+INSERT INTO orders (idOrderClient, orderStatus, orderDescription, Freight) VALUES
+		(1, 'Em Processamento', 'Pedido de Smartphone', 15.00),
+		(2, 'Enviado', 'Pedido de Notebook', 20.00),
+		(3, 'Cancelado', 'Pedido de Camiseta', 10.00),
+		(4, 'Em Processamento', 'Pedido de Tênis', 12.00),
+		(5, 'Enviado', 'Pedido de Boneca', 8.00),
+		(6, 'Em Processamento', 'Pedido de Quebra-cabeça', 5.00),
+		(7, 'Enviado', 'Pedido de Chocolate', 3.50);
+
+INSERT INTO payments (idOrder, typePayments, PaymentsStatus, paymentDate) VALUES
+		(1, 'Cartão', 'Pago', '2025-09-01'),
+		(2, 'Boleto', 'Pago', '2025-09-02'),
+		(3, 'Pix', 'Pendente', '2025-09-03'),
+		(4, 'Cartão', 'Pago', '2025-09-04'),
+		(5, 'Boleto', 'Pago', '2025-09-05'),
+		(6, 'Pix', 'Pago', '2025-09-06'),
+		(7, 'Cartão', 'Pago', '2025-09-07');
+        
+INSERT INTO productStorage (storageLocation, quantity) VALUES
+		('A1', 50),
+		('A2', 30),
+		('B1', 100),
+		('B2', 75),
+		('C1', 20),
+		('C2', 40),
+		('D1', 200);
+        
+
+INSERT INTO supplier (SocialName, CNPJ, contact) VALUES
+		('Eletrônicos Brasil Ltda', '12345678000199', '11987654321'),
+		('Notebook Center SA', '23456789000188', '11987654322'),
+		('Moda e Estilo Ltda', '34567890000177', '11987654323'),
+		('Tênis e Companhia SA', '45678901000166', '11987654324'),
+		('Brinquedos Kids Ltda', '56789012000155', '11987654325'),
+		('Doces e Guloseimas SA', '67890123000144', '11987654326'),
+		('Games e Lazer Ltda', '78901234000133', '11987654327');
+        
+
+INSERT INTO seller (SocialName, AbstName, CNPJ, CPF, location, contact) VALUES
+		('Lucas Comércio', 'Lucas Silva', NULL, '12345678901', 'São Paulo', '11999998888'),
+		('Mariana Vendas', 'Mariana Souza', NULL, '23456789012', 'Rio de Janeiro', '21999997777'),
+		('Tech Solutions LTDA', 'Tech Solutions', '12345678000111', NULL, 'Belo Horizonte', '31999996666'),
+		('Ana Comércio', 'Ana Costa', NULL, '45678901234', 'Curitiba', '41999995555'),
+		('Moda & Estilo LTDA', 'Moda & Estilo', '23456789000122', NULL, 'São Paulo', '11999994444'),
+		('Rafael Vendas', 'Rafael Lima', NULL, '67890123456', 'Porto Alegre', '51999993333'),
+		('Fernanda Comércio', 'Fernanda Martins', NULL, '78901234567', 'Salvador', '71999992222');
+
+
+
+
+-- Produto de cada vendedor 
+
+INSERT INTO productSeller (idPseller, idProduct, prodQuantity) VALUES
+		(1, 1, 5),
+		(2, 2, 3),
+		(3, 3, 10),
+		(4, 4, 7),
+		(5, 5, 4),
+		(6, 6, 6),
+		(7, 7, 20);
+
+-- Produto nos pedidos
+INSERT INTO productOrder (idPOproduct, idPOorder, poQuantity, poStatus) VALUES
+		(1, 1, 1, 'Disponível'), 
+		(2, 2, 1, 'Disponível'),  
+		(3, 3, 2, 'Disponível'), 
+		(4, 4, 1, 'Disponível'),  
+		(5, 5, 1, 'Disponível'),  
+		(6, 6, 1, 'Disponível'),  
+		(7, 7, 3, 'Disponível');  
+
+-- produtos fornecidos por cada fornecedor
+INSERT INTO productSupplier (idPsSupplier, idPsProduct, quantity) VALUES
+		(1, 1, 50),  
+		(2, 2, 30),  
+		(3, 3, 100), 
+		(4, 4, 75),
+		(5, 5, 20), 
+		(6, 6, 40),  
+		(7, 7, 200); 
+        
+-- local dos produtos
+INSERT INTO storageLocation (idLproduct, idLstorage, location) VALUES
+		(1, 1, 'A1'),  
+		(2, 2, 'A2'),  
+		(3, 3, 'B1'), 
+		(4, 4, 'B2'), 
+		(5, 5, 'C1'), 
+		(6, 6, 'C2'), 
+		(7, 7, 'D1');  
+
+#########################################################################################################################################################################################
+
+-- Busca de relatório
+
+-- selecionar todos clientes
+
+select concat(Fname, ' ', Lname) as clients  from clients;
+
+-- Produtos com preço maior que 100
+
+select Pname as Product_name, price from product
+	where price > 100;
+    
+-- Pedidos que estão em processamento
+
+select orderDescription as Product_name, orderStatus
+	from orders
+	where orderStatus = 'Em Processamento';
+    
+-- Pagamentos realizados com cartão
+
+select typePayments as Payment_type, paymentsStatus as Status from payments
+	where typePayments = 'Cartão';
+    
+-- Produtos infantis
+    
+select Pname as product_name, category from product
+	where classification_kids = true;
+    
+-- Fornecedores de São Paulo
+
+select * from supplier;    
+
+
+-- Estoque abaixo de 50 unidades
+
+SELECT p.Pname, ps.quantity, sl.location
+	FROM product p
+	JOIN storageLocation sl ON sl.idLproduct = p.idProduct
+	JOIN productStorage ps ON sl.idLstorage = ps.idProdStorage
+	WHERE ps.quantity < 50;
+    
+-- Produtos da categoria “Eletrônico”
+
+select Pname as Product_name, category
+	from product
+    where category = 'Eletrônico';
+
+
+    
+
+
+
+    
+    
+    
+    
+    
+    
+
+
+
