@@ -1,0 +1,218 @@
+-- -- criação do banco de dados para a oficina
+create database vehicle_workshop;
+use vehicle_workshop;
+
+create table clients(
+	idClient int auto_increment primary key,
+    Fname varchar(20),
+    Lname varchar(20),
+    contact char(11) not null,
+    Address varchar(100) not null
+);
+
+create table workshop(
+	idWorkshop int auto_increment primary key,
+	Wname varchar(45),
+    Address varchar(100) not null
+
+);
+
+create table service_order(
+	idServiceOrder int auto_increment primary key,
+    idVehicle int not null,
+    idClient int not null,
+    idWorkshop int not null,
+    IssueDate DATETIME,
+    price float,
+    Authorized bool default false,
+    foreign key (idWorkshop) references workshop(idWorkshop),
+    foreign key (idClient) references clients(idClient),
+    foreign key (idVehicle) references vehicle(idVehicle)
+
+    );
+    
+    
+create table vehicle(
+	idVehicle int auto_increment primary key,
+    model varchar(15),
+    brand varchar(20)
+);
+
+create table mechanic(
+	idMechanic int auto_increment primary key,
+    idWorkshop int not null,
+    idTeam int,
+    MFname varchar(20),
+    MLname varchar(20),
+    Mcode varchar(10) not null,
+    Address varchar(100) not null,
+    specialty varchar(50),
+    foreign key (idWorkshop) references workshop(idWorkshop),
+    foreign key (idTeam) references team(idTeam)
+
+);
+
+create table part(
+	idPart int auto_increment primary key,
+    Pname varchar(30),
+    quantity int default 0,
+    price float
+);
+
+create table team(
+	idTeam int auto_increment primary key,
+    Tname varchar(20) not null
+);
+
+create table service_mechanic(
+	idServiceOrder int not null,
+	idMechanic int not null,
+    primary key(idServiceOrder, idMechanic),
+    foreign key (idServiceOrder) references service_order(idServiceOrder),
+    foreign key (idMechanic) references mechanic(idMechanic)
+);
+
+create table service_part(
+	idServiceOrder int not null,
+    idPart int not null,
+    primary key(idServiceOrder, idPart),
+    foreign key (idServiceOrder) references service_order(idServiceOrder),
+    foreign key (idPart) references part(idPart)
+);
+
+#################################################################################################################################################################################################################
+
+-- criando registros
+
+INSERT INTO clients (Fname, Lname, contact, Address) VALUES
+		('João', 'Silva', '11999999999', 'Rua A, 123'),
+		('Maria', 'Souza', '11988888888', 'Rua B, 456'),
+		('Pedro', 'Oliveira', '11977777777', 'Rua C, 789'),
+		('Ana', 'Costa', '11966666666', 'Rua D, 101'),
+		('Lucas', 'Pereira', '11955555555', 'Rua E, 202');
+        
+INSERT INTO workshop (Wname, Address) VALUES
+		('Oficina Central', 'Av. Brasil, 100'),
+		('Oficina Norte', 'Rua das Flores, 50'),
+		('Oficina Sul', 'Av. das Américas, 200'),
+		('Oficina Leste', 'Rua do Sol, 30'),
+		('Oficina Oeste', 'Av. das Palmeiras, 400');
+        
+INSERT INTO vehicle (model, brand) VALUES
+		('Civic', 'Honda'),
+		('Corolla', 'Toyota'),
+		('Golf', 'Volkswagen'),
+		('Uno', 'Fiat'),
+		('Fiesta', 'Ford');
+        
+INSERT INTO team (Tname) VALUES
+		('Equipe A'),
+		('Equipe B'),
+		('Equipe C'),
+		('Equipe D'),
+		('Equipe E');
+        
+INSERT INTO mechanic (idWorkshop, idTeam, MFname, MLname, Mcode, Address, specialty) VALUES
+		(1, 1, 'Carlos', 'Souza', 'M001', 'Rua X, 10', 'Motor'),
+		(2, 2, 'Fernanda', 'Lima', 'M002', 'Rua Y, 20', 'Elétrica'),
+		(3, 3, 'Rafael', 'Pinto', 'M003', 'Rua Z, 30', 'Suspensão'),
+		(4, 4, 'Patrícia', 'Almeida', 'M004', 'Rua W, 40', 'Freios'),
+		(5, 5, 'Bruno', 'Costa', 'M005', 'Rua V, 50', 'Transmissão');
+        
+INSERT INTO part (Pname, quantity, price) VALUES
+		('Filtro de óleo', 10, 25.00),
+		('Pastilha de freio', 20, 50.00),
+		('Bateria', 5, 300.00),
+		('Velas', 15, 10.00),
+		('Amortecedor', 8, 200.00);
+        
+INSERT INTO service_order (idVehicle, idClient, idWorkshop, IssueDate, price, Authorized) VALUES
+		(1, 1, 1, '2025-09-15 10:00:00', 250.00, TRUE),
+		(2, 2, 2, '2025-09-16 11:30:00', 400.00, TRUE),
+		(3, 3, 3, '2025-09-17 09:15:00', 150.00, FALSE),
+		(4, 4, 4, '2025-09-18 14:45:00', 500.00, TRUE),
+		(5, 5, 5, '2025-09-19 13:20:00', 300.00, FALSE);
+        
+INSERT INTO service_mechanic (idServiceOrder, idMechanic) VALUES
+		(1, 1),
+		(1, 2),
+		(2, 3),
+		(3, 4),
+		(4, 5);
+        
+INSERT INTO service_part (idServiceOrder, idPart) VALUES
+		(1, 1),
+		(1, 2),
+		(2, 3),
+		(3, 4),
+		(4, 5);
+
+################################################################################################################################################################################################################
+
+use vehicle_workshop;
+
+-- Todas as oficinas
+select * from workshop;
+
+-- Todos os serviços altorizados
+
+select distinct
+	concat(Fname, ' ', Lname) as Clients,
+    vehicle.brand ,
+    vehicle.model,
+    service_order.Authorized
+from clients
+inner join service_order on clients.idClient = service_order.idClient
+inner join vehicle on service_order.idVehicle = vehicle.idVehicle
+where service_order.Authorized = true;
+    
+-- Veículos de um cliente específico
+
+select distinct
+	concat(Fname,  ' ', Lname) as clients,
+    vehicle.brand,
+    vehicle.model
+from clients
+inner join service_order on clients.idClient = service_order.idClient
+inner join vehicle on service_order.idVehicle = vehicle.idVehicle
+where clients.Fname = 'João';
+    
+-- Serviços e preços
+
+select distinct
+	service_order.idServiceOrder,
+    concat(MFname, ' ', MLname) as Mechanic,
+    mechanic.specialty,
+    part.Pname as Part,
+    service_order.price
+from service_order
+inner join mechanic on service_order.idWorkshop = mechanic.idWorkshop
+inner join service_part on service_order.idServiceOrder = service_part.idServiceOrder
+inner join part on service_part.idPart = part.idPart
+where service_order.price > 300;
+
+
+-- Peças com estoque baixo
+
+select distinct
+	IdPart,
+    Pname as Part_name,
+    quantity
+from part
+where quantity < 10;
+    
+	
+-- Calcular custo total do serviço incluindo peças
+
+select 
+	service_order.idServiceOrder,
+    concat(mechanic.MFname, ' ', mechanic.MLname) as Mechanic,
+    service_order.price as ServicePrice,
+    sum(part.price) as TotalPartsPrice,
+    (service_order.price + sum(part.price)) as TotalCost
+from service_order
+inner join mechanic on service_order.idWorkshop = mechanic.idWorkshop
+inner join service_part on service_order.idServiceOrder = service_part.idServiceOrder
+inner join part on service_part.idPart = part.idPart
+group by service_order.idServiceOrder, mechanic.MFname, mechanic.MLname, service_order.price;
+    
