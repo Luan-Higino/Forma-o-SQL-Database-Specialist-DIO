@@ -1,0 +1,224 @@
+-- criação do banco de dados para o cenário de E-commerce
+
+create database ecommerce;
+use ecommerce;
+
+-- criar tabela cliente
+
+create table clients(
+	idClient int auto_increment primary key,
+    Fname varchar (10),
+    Minit char(3),
+    Lname varchar(20),
+    CPF char(11) not null,
+    Address varchar(100),
+    CONSTRAINT unique_cpf_client UNIQUE (CPF)
+);
+
+
+-- criar tabela produto
+-- size: dimensão do produto
+
+create table product(
+	idProduct int auto_increment primary key,
+    Pname varchar(15) not null,
+    classification_kids bool default false,
+    category enum('Eletrônico', 'Vestimento', 'Brinquedos', 'Alimentos') not null,
+    assessment float default 0,
+    size varchar(10),
+    Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0)
+);
+
+
+-- criar tabela pedido
+
+create table orders(
+	idOrder int auto_increment primary key,
+    idOrderClient int,
+    orderStatus enum('Cancelado', 'Enviado', 'Em Processamento') default 'Em Processamento',
+    orderDescription varchar(255),
+    Freight float default 10,
+	constraint fk_orders_client foreign key (idOrderClient) references clients(idClient)
+);
+
+-- criar tabela de pagamento
+
+create table payments(
+	idOrder int not null,
+    idPayment int auto_increment primary key,
+    typePayments enum('Boleto', 'Cartão', 'Pix'),
+    PaymentsStatus varchar(20),
+    paymentDate DATE not null,
+    constraint fk_payments_order foreign key (idOrder) references orders(idOrder)
+);
+
+-- criar tabela de estoque
+
+create table productStorage(
+	idProdStorage int auto_increment primary key,
+    storageLocation varchar(255),
+    quantity int default 0
+);
+
+-- criar tabela de fornecedor
+
+create table supplier(
+	idSupplier int auto_increment primary key,
+    SocialName varchar(255) not null,
+    CNPJ char(14) not null,
+    contact char(11) not null,
+    constraint unique_supplier unique (CNPJ)
+);
+
+-- criar tabela de vendedor
+
+create table seller(
+	idSeller int auto_increment primary key,
+    SocialName varchar(255) not null,
+    AbstName varchar(255),
+    CNPJ char(14),
+    CPF char(11),
+    location varchar(255),
+    contact char(11) not null,
+    constraint unique_cnpf_seller unique(CNPJ),
+    constraint unique_cpf_seller unique(CPF),
+    CONSTRAINT chk_seller_cpf_cnpj CHECK (CPF IS NOT NULL OR CNPJ IS NOT NULL)
+);
+
+
+-- criar tabela de produto de vendedor
+
+create table productSeller(
+	idPseller int,
+    idProduct int,
+    prodQuantity int default 1,
+    primary key (idPseller, idProduct),
+    constraint fk_product_seller  foreign key (idPseller) references seller(idSeller),
+	constraint fk_product_product  foreign key (idProduct) references product(idProduct)
+);
+
+-- produto e pedido
+
+create table productOrder(
+	idPOproduct int,
+    idPOorder int,
+    poQuantity int default 1,
+    poStatus enum('Disponível','Sem estoque') default 'Disponivel',
+    primary key (idPOproduct,idPOorder),
+    constraint fk_productOrder_seller  foreign key (idPOproduct) references product(idProduct),
+    constraint fk_productOrder_product  foreign key (idPOorder) references orders(idOrder)
+);
+
+-- estoque de produto
+
+create table storageLocation(
+	idLproduct int,
+    idLstorage int,
+    location varchar(255) not null,
+    primary key(idLproduct,idLstorage),
+    constraint fk_storageLocation_product  foreign key (idLproduct) references product(idProduct),
+    constraint fk_storageLocation_storage  foreign key (idLstorage) references productStorage(idProdStorage)
+
+);
+
+
+-- criando produto vendedor
+
+create table productSupplier(
+	idPsSupplier int,
+    idPsProduct int,
+    quantity int not null,
+    primary key(idPsSupplier,idPsProduct),
+    constraint fk_product_supplier_supplier foreign key (idPsSupplier) references supplier(idSupplier),
+    constraint fk_product_supplier_product foreign key (idPsProduct) references product(idProduct)
+);
+
+##############################################################################################################################################################################################################
+
+use ecommerce;
+
+-- Parte 1 – Criando índices em Banco de Dados
+
+-- Qual o departamento com maior número de pessoas? 
+
+create index Index_Employee_department on employee(Dno);
+
+select d.Dname, count(e.Dno) as Nummber_employee
+from employee e
+inner join departament d on  e.Dno =  d.Dnumber
+group by d.Dname
+order by Nummber_employee desc
+limit 1;
+
+-- Quais são os departamentos por cidade? 
+
+create index index_dep_location on departament(Dnumber);
+
+select distinct d.Dname, l.Dlocation
+from departament d
+inner join dep_locations l on d.Dnumber = l.Dnumber;
+
+-- Relação de empregrados por departamento 
+
+create index index_employ_dep on departament(Mgr_ssn);
+
+select d.Dname, count(e.Ssn)
+from departament d
+inner join employee e on e.Dno = d.Dnumber
+group by d.Dname;
+
+
+-- Parte 2 - Utilização de procedures para manipulação de dados em Banco de Dados 
+
+use ecommerce;
+desc clients;
+
+drop procedure manipulação_ecommerce_clients;
+
+delimiter $$
+	
+    create procedure manipulação_ecommerce_clients(
+		in p_acao int,
+        in p_id int,
+        in p_name varchar(45),
+        in p_minit char(9),
+        in p_Lname varchar(20),
+        in P_cpf char(11),
+        in p_address varchar(100)
+    )
+   begin
+		if p_acao = 1 then
+			select * from clients;
+		elseif p_acao = 2 then
+			insert into clients (idClient, Fname, Minit, Lname, CPF, Address) values
+            (p_id, p_name, p_minit, p_Lname, P_cpf, p_address);
+		elseif p_acao = 3 then
+			update clients 
+			set Fname = coalesce(p_name, Fname),
+				Minit = coalesce(p_minit, Minit),
+				Lname = coalesce(p_lname, Lname),
+				CPF = coalesce(p_cpf, CPF),
+				Address = coalesce(p_address, Address)
+			where idClient = p_id;
+		elseif p_acao = 4 then
+			delete from clients
+				where idClient = p_id;
+		else
+			select 'Ação invalida' as mensagem;
+		end if;
+end $$
+delimiter ;
+
+-- Select
+call manipulação_ecommerce_clients (1, null, null, null, null, null, null);
+
+-- insert
+call manipulação_ecommerce_clients(2, 8, 'Gabriel', 'H', 'Miranda', '12345678987', 'Rua das vinte');
+
+-- Update
+call manipulação_ecommerce_clients(3, 8, 'Mateus', null, null, null, null);
+
+-- Delete
+call manipulação_ecommerce_clients(4,8, null,null,null,null,null);
+
+
