@@ -1,0 +1,155 @@
+use company;
+
+-- Parte 1 – Personalizando acessos com views 
+-- Número de empregados por departamento e localidade 
+
+
+create view vw_employee_dp_location as
+select  d.Dname as Departament ,
+		dl.Dlocation as Location,
+        count(e.Ssn) as employeeNumber
+from departament d
+inner join dep_locations dl on d.Dnumber = dl.Dnumber
+inner join employee e on e.Dno = d.Dnumber and dl.Dlocation = dl.Dlocation
+group by d.Dnumber,dl.Dlocation; 
+   
+
+-- Lista de departamentos e seus gerentes 
+
+create view vw_dept_Mgr as
+select d.Dname as departament, Mgr_ssn as Manager
+from departament d;
+
+-- Projetos com maior número de empregados (ex: por ordenação desc) 
+
+create view vw_proj_com_mais_emp as
+select 
+    p.Pname as Projeto,
+    p.Pnumber as NumeroProjeto,
+    count(w.Essn) as NumeroEmpregados
+from project p
+left join works_on w 
+    on p.Pnumber = w.Pno
+group by p.Pname, p.Pnumber
+order by NumeroEmpregados desc;
+
+select * from vw_proj_com_mais_emp;
+
+-- Lista de projetos, departamentos e gerentes 
+
+create view vw_Proj_dept_mgr as
+select p.Pname as Projeto,
+	   d.Dname as Departamento,
+       d.Mgr_ssn as Gerente
+from project p
+inner join departament d on p.Pnumber = d.Dnumber
+group by  p.Pname, d.Dname;
+
+select * from vw_Proj_dept_mgr;
+       
+-- Quais empregados possuem dependentes e se são gerentes 
+
+select * from dependent;
+select * from employee;
+
+create view vw_emp_depen_mgr as
+select 
+	e.Fname as Empregado,
+    d.Dependent_name as Dependente,
+    d.Relationship as Relação,
+    case
+		when e.Ssn in (select Mgr_ssn from departament) then 'Sim'
+        else 'Não'
+	end as Gerente		
+from employee e 
+inner join dependent d on e.Ssn = d.Essn;
+
+SELECT  * FROM vw_emp_depen_mgr;
+
+-- Criando usuarios de acesso
+-- Gerente
+
+create user 'Gerente'@localhost identified by 'senha123';
+grant all privileges on company.* to 'Gerente'@localhost;
+FLUSH PRIVILEGES;
+
+-- Analista
+
+CREATE USER 'Analista'@'localhost' IDENTIFIED BY 'senha1234';
+GRANT SELECT ON company.* TO 'Analista'@'localhost';
+FLUSH PRIVILEGES;
+show databases;
+
+
+-- Parte 2 – Criando gatilhos para cenário de e-commerce 
+-- Triggers de remoção: before delete 
+
+create table employee_removed(
+	Ssn char(9) primary key not null,
+    Fname varchar(15),
+    Lname varchar(15),
+    Bdate date,
+    Address varchar(30),
+    sex char(1),
+    Salary decimal(10,2),
+    Super_ssn char(9),
+    Dno int,
+    removedat datetime
+);
+
+
+
+delimiter $$
+create trigger trg_before_delete_clients
+before delete on employee
+for each row
+begin
+	insert into employee_removed(Ssn, Fname, Lname, Bdate, Address, sex, Salary, Super_ssn, Dno, removedat)
+    values(old.Ssn, old.Fname, old.Lname, old.Bdate, old. Address, old.sex, old.Salary, old.Super_ssn, old.Dno, now());
+end $$
+delimiter ;
+
+
+-- Triggers de atualização: before update 
+
+create table employee_Update(
+	Ssn char(9) primary key not null,
+    OldSalary decimal(10,2),
+    NewSalary decimal(10,2),
+    OldDno int,
+    NewDno int,
+    ChangedAt  datetime
+);
+
+delimiter $$
+create trigger trg_before_update_employee
+before update on employee
+for each row
+begin
+	if old.Salary <> new.Salary or old.Dno <> new.Dno then
+		insert into employee_Update(Ssn, OldSalary, NewSalary, OldDno, NewDno, Changedat)
+        values(old.Ssn, old.Salary, new.Salary, old.Dno, new.Dno, now());
+	end if;
+end $$
+delimiter ;
+
+-- Testando o DELETE
+
+insert into employee (Ssn, Fname, Minist, Lname, Bdate, Address, Sex, Salary, Super_ssn, Dno)
+values ('123456710', 'Carlos', 'A', 'Souza', '1990-05-10', 'Rua A, 123', 'M', 4000.00, null, 2);
+
+delete from employee where Ssn = '123456710';
+
+select * from employee_removed;
+
+
+-- Teste Update
+
+insert into employee(Ssn, Fname, Lname, Bdate, Address, Sex, Salary, Super_ssn, Dno)
+values('987654371', 'Ana', 'Silva', '1995-08-20', 'Rua B, 456', 'F', 3500.00, null, 1);
+
+update employee
+set Salary = 4500.00, Dno = 3
+where Ssn = '987654371'; 
+
+select * from employee_Update;
