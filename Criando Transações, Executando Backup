@@ -1,0 +1,56 @@
+use company;
+
+-- PARTE 1 – TRANSAÇÕES, modificações na base de dados.
+
+set autocommit = 0;
+start transaction;
+
+update employee
+set Salary = Salary * 1.10
+where Dno = 5;
+
+insert into departament(Dname, Dnumber, Mgr_ssn, Mger_start_date)
+values ('Infra', 10, '123456789', curdate());
+
+commit;
+
+-- PARTE 2 - TRANSAÇÃO COM PROCEDURE 
+
+delimiter $$
+
+create procedure CriarDepartamentoGerente(
+	in p_nomeDept varchar(50),
+    in p_numDept int,
+    in p_mgrSSN char(9),
+    in p_novoSalario decimal(10,2)
+
+)
+begin
+	declare exit handler for sqlexception
+    begin
+		rollback;
+        select "❌ Erro detectado. Transação revertida" as Mensagem;
+	end ;
+
+	start transaction;
+	savepoint inicio;
+
+	insert into departament(Dname, Dnumber, Mgr_ssn, Mger_start_date)
+	value(p_nomeDept, p_numDept, p_mgrSSN, curdate());
+
+	update employee
+	set Salary = Salary + 500
+	where Dno = p_mgrSSN;
+
+	commit;
+
+	select '✅ Transação concluída com sucesso!' as mensagem;
+
+end $$
+
+delimiter ;
+
+
+CALL CriarDepartamentoGerente('Infraestrutura', 11, '987654371', 8000);
+
+
